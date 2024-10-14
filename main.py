@@ -62,5 +62,10 @@ async def get_image(item_id):
     return Response(content=bytes.fromhex(image_bytes)) #16진법으로 되어있는 이미지를 가져와서 바이트 형식으로 변환시켜서 반환
     
     
+@app.post('/signup')
+def signup(id:Annotated[str,Form()],password:Annotated[str,Form()]):
+    print(id, password)
+    return '200'
+
 
 app.mount("/",StaticFiles(directory="frontend",html=True),name="frontend")
