@@ -1,4 +1,4 @@
-from fastapi import FastAPI,UploadFile,Form,Response
+from fastapi import FastAPI,UploadFile,Form,Response,Depends
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from fastapi.staticfiles import StaticFiles
@@ -28,11 +28,14 @@ manager = LoginManager(SECRET,'/login') #login 페이지에서만 토큰 발급
 
  
 @manager.user_loader()
-def query_user(id):
+def query_user(data):
+    WHERE_STATEMENTS = f'id="{data}"'
+    if type(data) == dict:
+        WHERE_STATEMENTS=f'''id="{data['id']}"'''
     con.row_factory = sqlite3.Row #데이터 조회해서 가져올 때 컬럼명도 같이 가져오게 해줌.
     cur=con.cursor()
     user=cur.execute(f"""
-                     SELECT * FROM users WHERE id='{id}'
+                     SELECT * FROM users WHERE {WHERE_STATEMENTS}
                      """).fetchone()
     return user
     
@@ -49,11 +52,13 @@ def login(id:Annotated[str,Form()],
         raise InvalidCredentialsException
     
     access_token = manager.create_access_token(data={
-        'id':user['id'],
-        'name':user['name'],
-        'email':user['email']
+        'sub':{
+            'id':user['id'],
+            'name':user['name'],
+            'email':user['email']
+        }
     })
-    return {'access_token : ':access_token}
+    return {'access_token':access_token}
 
 
 @app.post('/signup')
@@ -75,7 +80,9 @@ async def create_item(image:UploadFile,
                 price:Annotated[int,Form()], 
                 description:Annotated[str,Form()], 
                 place:Annotated[str,Form()],
-                insertAt:Annotated[int,Form()]):
+                insertAt:Annotated[int,Form()],
+                user=Depends(manager)
+                ):
     
     image_bytes = await image.read() #이미지를 읽어드림(시간이 걸려서 await을 사용)
     
@@ -88,7 +95,7 @@ async def create_item(image:UploadFile,
     
 
 @app.get('/items')
-async def get_items():
+async def get_items(user=Depends(manager)):#user=Depends(manager) 유저가 인증된 상태에서만 아이템 가져올 수 있게
     con.row_factory = sqlite3.Row #데이터 조회해서 가져올 때 컬럼명도 같이 가져오게 해줌.
     #ex) 결과 [['id',1],['title','식칼팝니다'],etc...]
     cur = con.cursor()
