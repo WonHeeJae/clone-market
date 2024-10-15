@@ -6,7 +6,7 @@
     <title>당근마켓 로그인</title>
   </head>
   <body>
-    <form action="/signup" method="post" id="signup-form">
+    <form id="login-form" action="/signup" method="post">
       <!--서버쪽으로 보낼 id값-->
       <div>로그인</div>
       <div>
@@ -22,6 +22,8 @@
       </div>
       <div id="info"></div>
     </form>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-sha256/0.9.0/sha256.min.js"></script>
+    <!--해시함수를 사용하기위한 링크-->
     <script src="login.js"></script>
   </body>
 </html>

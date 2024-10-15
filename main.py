@@ -2,6 +2,8 @@ from fastapi import FastAPI,UploadFile,Form,Response
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from fastapi.staticfiles import StaticFiles
+from fastapi_login import LoginManager
+from fastapi_login.exceptions import InvalidCredentialsException #유효하지 않는 것에 대한 에러처리
 from typing import Annotated
 import sqlite3
 
@@ -21,6 +23,51 @@ cur.execute(f"""
               """)
 app = FastAPI()
 
+SECRET = "super-coding"
+manager = LoginManager(SECRET,'/login') #login 페이지에서만 토큰 발급
+
+ 
+@manager.user_loader()
+def query_user(id):
+    con.row_factory = sqlite3.Row #데이터 조회해서 가져올 때 컬럼명도 같이 가져오게 해줌.
+    cur=con.cursor()
+    user=cur.execute(f"""
+                     SELECT * FROM users WHERE id='{id}'
+                     """).fetchone()
+    return user
+    
+    
+@app.post('/login')
+def login(id:Annotated[str,Form()],
+           password:Annotated[str,Form()]):
+    user = query_user(id)
+    
+    #유저가 존재하는지 판단 에러처리
+    if not user:
+        raise InvalidCredentialsException
+    elif password != user['password']:
+        raise InvalidCredentialsException
+    
+    access_token = manager.create_access_token(data={
+        'id':user['id'],
+        'name':user['name'],
+        'email':user['email']
+    })
+    return {'access_token : ':access_token}
+
+
+@app.post('/signup')
+def signup(id:Annotated[str,Form()],
+           password:Annotated[str,Form()],
+           name:Annotated[str,Form()],
+           email:Annotated[str,Form()]):
+    
+    cur.execute(f"""
+                INSERT INTO users(id,name,email,password)
+                VALUES ('{id}','{name}','{email}','{password}')
+                """)
+    con.commit()
+    return '200'
 
 @app.post('/items')
 async def create_item(image:UploadFile, 
@@ -61,19 +108,5 @@ async def get_image(item_id):
                              """).fetchone()[0] #16진법 상태로 데이터 가져옴
     return Response(content=bytes.fromhex(image_bytes)) #16진법으로 되어있는 이미지를 가져와서 바이트 형식으로 변환시켜서 반환
     
-    
-@app.post('/signup')
-def signup(id:Annotated[str,Form()],
-           password:Annotated[str,Form()],
-           name:Annotated[str,Form()],
-           email:Annotated[str,Form()]):
-    
-    cur.execute(f"""
-                INSERT INTO users(id,name,email,password)
-                VALUES ('{id}','{name}','{email}','{password}')
-                """)
-    con.commit()
-    return '200'
-
 
 app.mount("/",StaticFiles(directory="frontend",html=True),name="frontend")
