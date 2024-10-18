@@ -1,7 +1,62 @@
-<form id="write-form">
+<script>
+  import { getDatabase, ref, set } from "firebase/database";
+  import Nav from "../components/Nav.svelte";
+  import {
+    getStorage,
+    ref as refImage,
+    uploadBytes,
+    getDownloadURL,
+  } from "firebase/storage";
+
+  let title;
+  let price;
+  let description;
+  let place;
+
+  let files;
+
+  const storage = getStorage();
+  const storageRef = "";
+
+  async function writeUserData(imgUrl) {
+    const db = getDatabase();
+    push(ref(db, "items/" + title), {
+      title,
+      price,
+      description,
+      place,
+      insertAt: new Date().getTime(),
+      imgUrl,
+    });
+    alert("글쓰기가 완료되었습니다.");
+    window.location.hash = "/";
+  }
+
+  // uploadBytes(storageRef, file).then((snapshot) => {
+  //   console.log("Uploaded a blob or file!");
+  // });
+
+  $: if (files) console.log(files[0]);
+  const uploadFile = async () => {
+    const file = files[0];
+    const name = file.name;
+    const imgRef = refImage(storage, name);
+    await uploadBytes(imgRef, file);
+    const url = await getDownloadURL(imgRef);
+    return url;
+  };
+
+  const handleSubmit = async () => {
+    const url = await uploadFile();
+    writeUserData(url);
+  };
+</script>
+
+<form id="write-form" on:submit|preventDefault={handleSubmit}>
   <div>
     <label for="image">이미지</label>
-    <input type="file" id="image" name="image" />
+    <input type="file" bind:files id="image" name="image" />
+    <button on:click></button>
   </div>
 
   <div>
@@ -22,6 +77,18 @@
   </div>
 
   <div>
-    <button type="submit">글쓰기</button>
+    <button class="write-button" type="submit">글쓰기</button>
   </div>
 </form>
+<Nav location="write" />
+
+<style>
+  .write-button {
+    background-color: tomato;
+    margin: 10px;
+    border-radius: 10px;
+    padding: 5px 12px 5px 12px;
+    color: white;
+    cursor: pointer;
+  }
+</style>
